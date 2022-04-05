@@ -17,7 +17,7 @@ def replyFunc(group_id, text = '', imgs = []):
     if len(imgs) > 0:
         for img in imgs:
             msg.append(MessageSegment.image(img))
-    asyncio.gather(sendGroupMsg(group_id, msg))
+    asyncio.run(sendGroupMsg(group_id, msg))
 
 async def sendGroupMsg(group_id, msg: Message):
     await bot.call_api('send_group_msg', group_id = group_id, message = Message(msg))
