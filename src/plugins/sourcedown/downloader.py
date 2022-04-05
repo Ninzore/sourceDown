@@ -89,7 +89,7 @@ class Downloader():
             self.current_task.elapsed = d['elapsed']
             self.current_task.total_bytes = d['total_bytes']
             self.current_task.downloaded_bytes = d['downloaded_bytes']
-            self.current_task.speed = speed / 1024 if type(speed) is int else 0
+            self.current_task.speed = speed / 1024 / 1024 if type(speed) is float else 0
             self.current_task.status_text = '当前下载速度：{}MB/s'.format(self.current_task.speed)
         elif d['status'] == 'finished':
             print('finish part download')
