@@ -10,10 +10,10 @@ import yt_dlp
 
 from .downloadTask import Task, Contact
 from .manager import Manager
+from .utils import replyFunc
 
 db_name = 'queue.db'
 pattern = re.compile(r'Transferred')
-MAX_ALLOW_SIZE = 5*1024*1024*1024
 OUT_PATH = os.path.join(Path(__file__).parent.parent.parent.parent.resolve(), 'temp')
 
 if not os.path.exists(OUT_PATH):
@@ -81,9 +81,6 @@ class Downloader():
         self.q = 0
 
     def statusHook(self, d):
-        if d['total_bytes'] > MAX_ALLOW_SIZE:
-            self.current_task.status = 'error'
-
         if d['status'] == 'downloading':
             speed = d['speed']
             self.current_task.elapsed = d['elapsed']
@@ -100,7 +97,7 @@ class Downloader():
             self.current_task.status_text = '下载错误'
 
     def postprocessorHook(self, d):
-        if self.current_task.finished is False and d['status'] == 'finished':
+        if self.current_task is not None and self.current_task.finished is False and d['status'] == 'finished':
             self.current_task.finished = True
             self.current_task.filepath = d['info_dict']['filepath']
             self.current_task.filename = os.path.basename(self.current_task.filepath)
@@ -109,6 +106,9 @@ class Downloader():
             self.current_task.status_text = '下载完成，准备上传'
             self.current_task.remote_path = '{}/{}'.format(
                 self.current_task.remote_folder, self.current_task.filename)
+            if '__files_to_merge' in d['info_dict']:
+                self.current_task.__files_to_remove = d['info_dict']['__files_to_merge']
+            print(1)
             self.upload()
 
     def addQueue(self, task: Task):
@@ -122,9 +122,11 @@ class Downloader():
         #     )'''.format(title=self.title, url=self.url, status=self.status,
         #     group_id=self.contact.group_id, user_id=self.contact.user_id))
         
-        if not self.current_task:
+        if self.current_task is None and task.status != 'error':
             self.current_task = task
             self.download()
+        elif task.status == 'error':
+            replyFunc(task.contact.group_id, '{}\n{}'.format(task.title, task.status_text), [task.thumbnail])
         else:
             self.task_queue.append(task)
             return '已经添加到队列，前面还有{}个任务'.format(len(self.task_queue))
@@ -139,9 +141,15 @@ class Downloader():
 
     def download(self):
         self.current_task.status = 'downloading'
+        self.current_task.startTask()
         with YoutubeDL(self.ydl_opts) as ydl:
             # ydl.add_postprocessor_hook(postprocessorHook)
-            ydl.download([self.current_task.url])
+            try:
+                ydl.download([self.current_task.url])
+            except Exception as err:
+                print('{} 出错\n{}'.format(self.current_task.title, err))
+                self.current_task.finishTask()
+                self.nextTask()
             
         if not self.current_task or (self.current_task.finished is True and self.current_task.status != "finished"):
             self.nextTask()
@@ -149,11 +157,14 @@ class Downloader():
     def upload(self):
         proc = subprocess.Popen(
             ['rclone', 'copyto', '-P',
+            '--drive-chunk-size', '512M',
             self.current_task.filepath,
             self.current_task.remote_path],
             stdout=subprocess.PIPE)
+        
         for line in proc.stdout:
             line = line.decode('utf-8')
+
             match = pattern.search(line)
             if not match or match.start() == 0:
                 continue
@@ -167,14 +178,3 @@ class Downloader():
         print('下载完成')
         self.current_task.finishTask()
         self.nextTask()
-    
-    
-
-
-
-# testurl = 'https://www.youtube.com/watch?v=v68zYyaEmEA'
-# contact = Contact(group_id=123, user_id=456)
-# downloader = Downloader()
-# task = Task(testurl, contact)
-# # test.upload("lander:")
-# downloader.addQueue(task)
