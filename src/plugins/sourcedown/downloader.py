@@ -129,7 +129,7 @@ class Downloader():
             replyFunc(task.contact.group_id, '{}\n{}'.format(task.title, task.status_text), [task.thumbnail])
         else:
             self.task_queue.append(task)
-            return '已经添加到队列，前面还有{}个任务'.format(len(self.task_queue))
+            replyFunc('已经添加到队列，前面堆着{}个任务'.format(len(self.task_queue) + 1))
 
     def nextTask(self):
         if len(self.task_queue) > 0:
@@ -155,6 +155,7 @@ class Downloader():
             self.nextTask()
     
     def upload(self):
+        print(2)
         proc = subprocess.Popen(
             ['rclone', 'copyto', '-P',
             '--drive-chunk-size', '512M',
