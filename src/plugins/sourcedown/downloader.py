@@ -164,7 +164,10 @@ class Downloader():
             stdout=subprocess.PIPE)
         
         for line in proc.stdout:
-            line = line.decode('utf-8')
+            try:
+                line = line.decode('utf-8')
+            except UnicodeDecodeError as err:
+                line = '1' + line[err.end:len(line)].decode('utf-8')
 
             match = pattern.search(line)
             if not match or match.start() == 0:
