@@ -7,11 +7,15 @@ import yt_dlp
 from .groupList import yellow_book
 from .manager import Manager
 from .utils import replyFunc
+# from .cloudreve import cloudreve
 
 Contact = namedtuple('Contact', [
     'group_id',
     "user_id"
 ])
+
+MAX_ALLOW_SIZE = 20*1024*1024*1024
+BASE_URL = ''
 
 class Task():
     def __init__(self, url: str, contact: Contact, **kwargs):
@@ -33,25 +37,40 @@ class Task():
         self.add_time = time.time() + 8 * 3600
         self.file_link = ''
         self.extractInfo()
-        self.thumbnail = 'https://i.ytimg.com/vi/{}/maxresdefault.jpg'.format(self.video_id)
         self.remote_folder = Manager.selectRmtFolder(self.contact.group_id)
         self.remote_path = ''
         self.finished = False
+        self.__files_to_remove = []
 
     def extractInfo(self):
         with YoutubeDL() as ydl:
-            info = ydl.extract_info(self.url, download=False, process=False)
-            self.video_id = info['id']
-            self.title = info['title']
-            self.uploader = info['uploader']
-            self.is_live = info['is_live']
-    
+            try:
+                info = ydl.extract_info(self.url, download=False, process=False)
+                self.video_id = info['id']
+                self.title = info['title']
+                self.uploader = info['uploader']
+                self.is_live = info['is_live']
+                self.thumbnail = 'https://i.ytimg.com/vi/{}/maxresdefault.jpg'.format(self.video_id)
+
+                best_video = next(f for f in info['formats'][::-1]
+                            if f['vcodec'] != 'none' and f['acodec'] == 'none' and f['video_ext'] == 'mp4')
+                if best_video['filesize'] > MAX_ALLOW_SIZE:
+                    self.status = 'error'
+                    self.status_text = '错误：文件过大无法下载'
+            except:
+                self.status = 'error'
+                self.status_text = '错误：会限？私享？反正拿不到'
+            
+    def startTask(self):
+        replyFunc(self.contact.group_id, '开始下载\n{}'.format(self.title), [self.thumbnail])
+
     def finishTask(self):
             self.retrieveLink()
 
     def retrieveLink(self):
         time.sleep(3)
         link = Manager.retrieveLink(self.remote_path)
-        self.file_link = link if link else self.title + '失败'
+        # link = BASE_URL + '{}/{}'.format(yellow_book.get(self.contact.group_id), self.filename)
+        self.file_link = link if link else '' + '失败'
         replyFunc(self.contact.group_id, '{}\n{}'.format(self.title, self.file_link), [self.thumbnail])
-        os.unlink(self.filepath)
+        
