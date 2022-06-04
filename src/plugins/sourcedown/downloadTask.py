@@ -65,7 +65,14 @@ class Task():
         replyFunc(self.contact.group_id, '开始下载\n{}'.format(self.title), [self.thumbnail])
 
     def finishTask(self):
+        if self.status != 'error':
             self.retrieveLink()
+        if os.path.exists(self.filepath):
+            os.unlink(self.filepath)
+
+        for item in self.__files_to_remove:
+            if os.path.exists(item):
+                os.unlink(item)
 
     def retrieveLink(self):
         time.sleep(3)
