@@ -1,3 +1,4 @@
+import re
 import asyncio
 
 from nonebot import get_bot
@@ -25,3 +26,10 @@ def replyFunc(group_id, text = '', imgs = []):
 
 async def sendGroupMsg(group_id, msg: Message):
     await bot.call_api('send_group_msg', group_id = group_id, message = Message(msg))
+
+def timestampProc(ts: str):
+    ptn = re.compile(r'\d{2}[:：]\d{2}[:：]\d{2}')
+    match = ptn.search(ts)
+    if match is None:
+        return None
+    return match.group(0).replace('：', ':')
