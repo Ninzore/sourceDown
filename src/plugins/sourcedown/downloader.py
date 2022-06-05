@@ -8,9 +8,9 @@ import sqlite3
 from yt_dlp import YoutubeDL
 import yt_dlp
 
-from .downloadTask import Task, Contact
-from .manager import Manager
-from .utils import replyFunc
+from downloadTask import Task, Contact
+from manager import Manager
+from utils import replyFunc
 
 db_name = 'queue.db'
 pattern = re.compile(r'Transferred')
@@ -97,19 +97,20 @@ class Downloader():
             self.current_task.status_text = '下载错误'
 
     def postprocessorHook(self, d):
+        self.current_task.status_text = '下载完成，正在合并文件'
         if self.current_task is not None and self.current_task.finished is False and d['status'] == 'finished':
             self.current_task.finished = True
             self.current_task.filepath = d['info_dict']['filepath']
             self.current_task.filename = os.path.basename(self.current_task.filepath)
             print(self.current_task.title, 'finished')
             self.current_task.status == "finished"
-            self.current_task.status_text = '下载完成，准备上传'
-            self.current_task.remote_path = '{}/{}'.format(
-                self.current_task.remote_folder, self.current_task.filename)
             if '__files_to_merge' in d['info_dict']:
                 self.current_task.__files_to_remove = d['info_dict']['__files_to_merge']
-            print(1)
-            self.upload()
+            
+            if self.current_task.start or self.current_task.end:
+                self.cut()
+            else:
+                self.upload()
 
     def addQueue(self, task: Task):
         # dbOpreate('''INSERT INTO DownloadQueue (
@@ -126,10 +127,11 @@ class Downloader():
             self.current_task = task
             self.download()
         elif task.status == 'error':
+            print(f'组号{task.contact.group_id}, 任务创建失败')
             replyFunc(task.contact.group_id, '{}\n{}'.format(task.title, task.status_text), [task.thumbnail])
         else:
             self.task_queue.append(task)
-            replyFunc('已经添加到队列，前面堆着{}个任务'.format(len(self.task_queue) + 1))
+            replyFunc(task.contact.group_id, '已经添加到队列，前面堆着{}个任务'.format(len(self.task_queue) + 1))
 
     def nextTask(self):
         if len(self.task_queue) > 0:
@@ -154,15 +156,66 @@ class Downloader():
         if not self.current_task or (self.current_task.finished is True and self.current_task.status != "finished"):
             self.nextTask()
     
+    def cut(self):
+        start = self.current_task.start or '-'
+        end = self.current_task.end or '-'
+        filename = self.current_task.filename
+        i = filename.rfind('.')
+        
+        self.current_task.filename_cut = filename[:i] + ' [{}-{}]'.format(
+            start.replace(':', ','), end.replace(':', ',')
+        ) + filename[i:]
+        self.current_task.filepath_cut = self.current_task.filepath.replace(
+            filename, self.current_task.filename_cut)
+
+        self.current_task.status_text = '正在施展二刀流'
+        proc = subprocess.Popen(
+            list(filter(None, [
+                'ffmpeg',
+                '-ss' if start is not None else None, start or None,
+                '-i', self.current_task.filepath,
+                '-to' if end is not None else None, end or None,
+                '-c', 'copy',
+                self.current_task.filename_cut,
+                '-y'
+            ])),
+            cwd=OUT_PATH,
+            stdout=subprocess.PIPE
+        )
+        
+        for line in proc.stdout:
+            try:
+                line = line.decode('utf-8')
+            except UnicodeDecodeError as err:
+                print(err)
+            print(line)
+        self.upload()
+
+
     def upload(self):
-        print(2)
+        filename = ''
+        filepath = ''
+        if (len(self.current_task.filename_cut)) > 0:
+            filename = self.current_task.filename_cut
+            filepath = self.current_task.filepath_cut
+        else:
+            filename = self.current_task.filename
+            filepath = self.current_task.filepath
+        
+        self.current_task.remote_path = '{}/{}'.format(
+            self.current_task.remote_folder, filename)
+
+        print('开始上传:', filename)
+        self.current_task.status_text = '准备上传'
+
         proc = subprocess.Popen(
             ['rclone', 'copyto', '-P',
             '--drive-chunk-size', '512M',
-            self.current_task.filepath,
+            filepath,
             self.current_task.remote_path],
             stdout=subprocess.PIPE)
         
+        i = 0
         for line in proc.stdout:
             try:
                 line = line.decode('utf-8')
@@ -178,6 +231,11 @@ class Downloader():
             text = '上传中: {}, 进度:{}\n速度:{}\n预计结束: {}' \
             .format(groups[0], groups[1], groups[2], groups[3][3:])
             self.current_task.status_text = text
+
+            i = i + 1
+            if i > 8:
+                i = 0
+                print(text.replace('\n', ' '))
         
         print('下载完成')
         self.current_task.finishTask()

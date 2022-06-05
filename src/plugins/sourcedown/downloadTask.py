@@ -11,17 +11,19 @@ from .utils import replyFunc
 
 Contact = namedtuple('Contact', [
     'group_id',
-    "user_id"
+    'user_id'
 ])
 
 MAX_ALLOW_SIZE = 20*1024*1024*1024
-BASE_URL = ''
+BASE_URL = 'https://shelf.a-wsl.com/'
 
 class Task():
     def __init__(self, url: str, contact: Contact, **kwargs):
         self.contact = contact
         self.args = kwargs
         self.url = url
+        self.start = kwargs['start']
+        self.end = kwargs['end']
         self.avg_down_speed = 0
         self.avg_up_speed = 0
         self.elapsed = 0
@@ -30,7 +32,9 @@ class Task():
         self.video_id = ''
         self.uploader = ''
         self.filepath = ''
+        self.filepath_cut = ''
         self.filename = ''
+        self.filename_cut = ''
         self.total_bytes = 0
         self.downloaded_bytes = 0
         self.status_text = ''
@@ -41,6 +45,7 @@ class Task():
         self.remote_path = ''
         self.finished = False
         self.__files_to_remove = []
+        print(f'群号{self.contact.group_id}, 添加任务{self.title}')
 
     def extractInfo(self):
         with YoutubeDL() as ydl:
@@ -62,6 +67,7 @@ class Task():
                 self.status_text = '错误：会限？私享？反正拿不到'
             
     def startTask(self):
+        print(f'群号{self.contact.group_id} 开始下载:{self.title}')
         replyFunc(self.contact.group_id, '开始下载\n{}'.format(self.title), [self.thumbnail])
 
     def finishTask(self):
@@ -80,4 +86,3 @@ class Task():
         # link = BASE_URL + '{}/{}'.format(yellow_book.get(self.contact.group_id), self.filename)
         self.file_link = link if link else '' + '失败'
         replyFunc(self.contact.group_id, '{}\n{}'.format(self.title, self.file_link), [self.thumbnail])
-        
