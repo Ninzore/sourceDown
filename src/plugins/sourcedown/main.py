@@ -15,6 +15,7 @@ from .downloadTask import Task, Contact
 from .downloader import Downloader
 from .manager import Manager
 from .utils import timestampProc
+from .autoclean import startAutoCleanTask
 
 ytb_dl = on_regex('^下载\s?https:\/\/((www|m)\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_\-]{11})', permission=GROUP)
 manage = on_regex('^群文件夹链接', permission=GROUP)
@@ -27,6 +28,8 @@ ytb_url_ptn = re.compile(r'(https:\/\/((www|m)\.)?(youtube\.com\/watch\?v=|youtu
 dl_cmd_parser = argparse.ArgumentParser()
 dl_cmd_parser.add_argument('--开始', '-s', dest='start')
 dl_cmd_parser.add_argument('--结束', '-to', dest='end')
+
+startAutoCleanTask()
 
 @ytb_dl.handle()
 async def _(event: GroupMessageEvent):
