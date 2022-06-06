@@ -67,8 +67,13 @@ class Task():
                 self.status_text = '错误：会限？私享？反正拿不到'
             
     def startTask(self):
-        print(f'群号{self.contact.group_id} 开始下载:{self.title}')
-        replyFunc(self.contact.group_id, '开始下载\n{}'.format(self.title), [self.thumbnail])
+        text = list(filter(None, [
+            '\n' if self.start or self.end is not None else None,
+            f'从{self.start}开始' if self.start is not None else None,
+            f'到{self.end}结束' if self.end is not None else None,
+        ]))
+        print(f'群号{self.contact.group_id} 开始下载:{self.title}', ' '.join(text))
+        replyFunc(self.contact.group_id, '开始下载\n{}{}'.format(self.title, ' '.join(text)), [self.thumbnail])
 
     def finishTask(self):
         if self.status != 'error':
@@ -83,6 +88,5 @@ class Task():
     def retrieveLink(self):
         time.sleep(3)
         link = Manager.retrieveLink(self.remote_path)
-        # link = BASE_URL + '{}/{}'.format(yellow_book.get(self.contact.group_id), self.filename)
         self.file_link = link if link else '' + '失败'
         replyFunc(self.contact.group_id, '{}\n{}'.format(self.title, self.file_link), [self.thumbnail])
