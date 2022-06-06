@@ -78,8 +78,6 @@ class Task():
     def finishTask(self):
         if self.status != 'error':
             self.retrieveLink()
-        if os.path.exists(self.filepath):
-            os.unlink(self.filepath)
 
         for item in self.__files_to_remove:
             if os.path.exists(item):
