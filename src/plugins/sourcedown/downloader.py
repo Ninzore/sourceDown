@@ -140,7 +140,7 @@ class Downloader():
             replyFunc(task.contact.group_id, '{}\n{}'.format(task.title, task.status_text), [task.thumbnail])
         else:
             self.task_queue.append(task)
-            replyFunc(task.contact.group_id, '已经添加到队列，前面堆着{}个任务'.format(len(self.task_queue) + 1))
+            replyFunc(task.contact.group_id, '已经添加到队列，前面堆着{}个任务'.format(len(self.task_queue)))
 
     def nextTask(self):
         if len(self.task_queue) > 0:
