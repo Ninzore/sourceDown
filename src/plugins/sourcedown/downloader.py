@@ -1,6 +1,5 @@
 import os
 import re
-from pathlib import Path
 import asyncio
 import subprocess
 import sqlite3
@@ -8,9 +7,10 @@ import sqlite3
 from yt_dlp import YoutubeDL
 import yt_dlp
 
-from downloadTask import Task, Contact
-from manager import Manager
-from utils import replyFunc
+from . import config
+from .downloadTask import Task, Contact
+from .manager import Manager
+from .utils import replyFunc
 
 db_name = 'queue.db'
 pattern = re.compile(r'Transferred')
@@ -78,7 +78,6 @@ class Downloader():
             'progress_hooks': [self.statusHook],
             'postprocessor_hooks': [self.postprocessorHook]
         }
-        self.q = 0
 
     def statusHook(self, d):
         if d['status'] == 'downloading':
@@ -97,8 +96,18 @@ class Downloader():
             self.current_task.status_text = '下载错误'
 
     def postprocessorHook(self, d):
-        self.current_task.status_text = '下载完成，正在合并文件'
-        if self.current_task is not None and self.current_task.finished is False and d['status'] == 'finished':
+        """
+        merger status has 'started' and 'finished'
+        """
+        
+        if self.current_task is not None and d['status'] == 'started':
+            print('下载完成开始合并', self.current_task.contact.group_id, self.current_task.title)
+            self.current_task.status_text = '下载完成，正在合并文件'
+        
+        elif self.current_task is not None and self.current_task.finished is False and d['status'] == 'finished':
+            print('文件合并完成', self.current_task.contact.group_id, self.current_task.title)
+            self.current_task.status_text = '文件合并完成，等待上传'
+
             self.current_task.finished = True
             self.current_task.filepath = d['info_dict']['filepath']
             self.current_task.filename = os.path.basename(self.current_task.filepath)
@@ -145,7 +154,6 @@ class Downloader():
         self.current_task.status = 'downloading'
         self.current_task.startTask()
         with YoutubeDL(self.ydl_opts) as ydl:
-            # ydl.add_postprocessor_hook(postprocessorHook)
             try:
                 ydl.download([self.current_task.url])
             except Exception as err:
@@ -167,8 +175,8 @@ class Downloader():
         ) + filename[i:]
         self.current_task.filepath_cut = self.current_task.filepath.replace(
             filename, self.current_task.filename_cut)
-
         self.current_task.status_text = '正在施展二刀流'
+
         proc = subprocess.Popen(
             list(filter(None, [
                 'ffmpeg',
@@ -182,15 +190,17 @@ class Downloader():
             cwd=OUT_PATH,
             stdout=subprocess.PIPE
         )
-        
+        print('ffmpeg启动: ',proc.args)
+
         for line in proc.stdout:
             try:
                 line = line.decode('utf-8')
             except UnicodeDecodeError as err:
                 print(err)
             print(line)
+        
+        print('二刀流结束')
         self.upload()
-
 
     def upload(self):
         filename = ''
