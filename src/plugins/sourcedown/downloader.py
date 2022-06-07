@@ -176,6 +176,8 @@ class Downloader():
         self.current_task.filepath_cut = self.current_task.filepath.replace(
             filename, self.current_task.filename_cut)
         self.current_task.status_text = '正在施展二刀流'
+        start = self.current_task.start
+        end = self.current_task.end
 
         proc = subprocess.Popen(
             list(filter(None, [
