@@ -14,7 +14,7 @@ from .utils import replyFunc
 
 db_name = 'queue.db'
 pattern = re.compile(r'Transferred')
-OUT_PATH = os.path.join(Path(__file__).parent.parent.parent.parent.resolve(), 'temp')
+OUT_PATH = config.dl_root
 
 if not os.path.exists(OUT_PATH):
     os.mkdir(OUT_PATH)
