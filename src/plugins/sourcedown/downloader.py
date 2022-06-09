@@ -10,7 +10,7 @@ import yt_dlp
 from . import config
 from .downloadTask import Task, Contact
 from .manager import Manager
-from .utils import replyFunc
+from .utils import replyFunc, subProcWatchdog
 
 db_name = 'queue.db'
 pattern = re.compile(r'Transferred')
@@ -68,7 +68,8 @@ def dbOpreate(sql):
 #         return [], info
 
 class Downloader():
-    def __init__(self, **kwargs):
+    def __init__(self, loop: asyncio.AbstractEventLoop, **kwargs):
+        self.loop = loop
         self.args = kwargs
         self.current_task = None
         self.task_queue = []
@@ -165,6 +166,7 @@ class Downloader():
             self.nextTask()
     
     def cut(self):
+        print('二刀流启动中')
         start = self.current_task.start or '-'
         end = self.current_task.end or '-'
         filename = self.current_task.filename
@@ -179,30 +181,37 @@ class Downloader():
         start = self.current_task.start
         end = self.current_task.end
 
-        proc = subprocess.Popen(
-            list(filter(None, [
-                'ffmpeg',
-                '-ss' if start is not None else None, start or None,
-                '-i', self.current_task.filepath,
-                '-to' if end is not None else None, end or None,
-                '-c', 'copy',
-                self.current_task.filename_cut,
-                '-y'
-            ])),
-            cwd=OUT_PATH,
-            stdout=subprocess.PIPE
-        )
-        print('ffmpeg启动: ',proc.args)
+        try:
+            proc = subprocess.Popen(
+                list(filter(None, [
+                    'ffmpeg',
+                    '-ss' if start is not None else None, start or None,
+                    '-i', self.current_task.filepath,
+                    '-to' if end is not None else None, end or None,
+                    '-c', 'copy',
+                    self.current_task.filename_cut,
+                    '-y', '-loglevel', 'warning'
+                ])),
+                cwd=OUT_PATH,
+                stdout=subprocess.PIPE
+            )
+            print('ffmpeg启动:', proc.args)
 
-        for line in proc.stdout:
-            try:
-                line = line.decode('utf-8')
-            except UnicodeDecodeError as err:
-                print(err)
-            print(line)
-        
-        print('二刀流结束')
-        self.upload()
+            self.loop.run_in_executor(None, subProcWatchdog, proc)
+            for line in proc.stdout:
+                try:
+                    line = line.decode('utf-8')
+                except UnicodeDecodeError as err:
+                    print(err)
+                print(line)
+            
+            print('二刀流结束')
+            self.upload()
+        except Exception as err:
+            print('二刀流失败', err)
+            self.current_task.status = 'error'
+            self.current_task.status_text = '剪辑失败'
+            self.current_task.finishTask()
 
     def upload(self):
         filename = ''
@@ -220,35 +229,43 @@ class Downloader():
         print('开始上传:', filename)
         self.current_task.status_text = '准备上传'
 
-        proc = subprocess.Popen(
-            ['rclone', 'copyto', '-P',
-            '--drive-chunk-size', '512M',
-            filepath,
-            self.current_task.remote_path],
-            stdout=subprocess.PIPE)
-        
-        i = 0
-        for line in proc.stdout:
-            try:
-                line = line.decode('utf-8')
-            except UnicodeDecodeError as err:
-                line = '1' + line[err.end:len(line)].decode('utf-8')
+        try:
+            proc = subprocess.Popen(
+                ['rclone', 'copyto', '-P',
+                '--drive-chunk-size', '512M',
+                filepath,
+                self.current_task.remote_path],
+                stdout=subprocess.PIPE)
+            
+            self.loop.run_in_executor(None, subProcWatchdog, proc)
+            i = 0
+            for line in proc.stdout:
+                try:
+                    line = line.decode('utf-8')
+                except UnicodeDecodeError as err:
+                    line = '1' + line[err.end:len(line)].decode('utf-8')
 
-            match = pattern.search(line)
-            if not match or match.start() == 0:
-                continue
+                match = pattern.search(line)
+                if not match or match.start() == 0:
+                    continue
 
-            raw = line[match.end()+5:len(line)-1].replace('\t', "").replace(' ', "")
-            groups = raw.split(',')
-            text = '上传中: {}, 进度:{}\n速度:{}\n预计结束: {}' \
-            .format(groups[0], groups[1], groups[2], groups[3][3:])
-            self.current_task.status_text = text
+                raw = line[match.end()+5:len(line)-1].replace('\t', "").replace(' ', "")
+                groups = raw.split(',')
+                text = '上传中: {}, 进度:{}\n速度:{}\n预计结束: {}' \
+                .format(groups[0], groups[1], groups[2], groups[3][3:])
+                self.current_task.status_text = text
 
-            i = i + 1
-            if i > 8:
-                i = 0
-                print(text.replace('\n', ' '))
-        
-        print('下载完成')
-        self.current_task.finishTask()
-        self.nextTask()
+                i = i + 1
+                if i > 8:
+                    i = 0
+                    print(text.replace('\n', ' '))
+            
+            print('下载完成')
+            self.current_task.finishTask()
+            self.nextTask()
+            
+        except Exception as err:
+            print('上传失败', err)
+            self.current_task.status = 'error'
+            self.current_task.status_text = '上传失败'
+            self.current_task.finishTask()
