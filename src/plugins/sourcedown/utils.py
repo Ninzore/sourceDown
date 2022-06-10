@@ -20,11 +20,26 @@ def replyFunc(group_id, text = '', imgs = []):
     if len(imgs) > 0:
         for img in imgs:
             msg.append(MessageSegment.image(img))
+    
+    loop = False
     try:
-        asyncio.run(sendGroupMsg(group_id, msg))
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        in_loop = False
+        
+    try:
+        if loop:
+            asyncio.ensure_future(sendGroupMsg(group_id, msg), loop=loop)
+        else:
+            asyncio.run(sendGroupMsg(group_id, msg))
     except:
-        if len(text) > 0:
-            asyncio.run(sendGroupMsg(group_id, Message(text)))
+        if not len(text) > 0:
+            pass
+        else:
+            if loop:
+                asyncio.ensure_future(sendGroupMsg(group_id, Message(text)), loop=loop)
+            else:
+                asyncio.run(sendGroupMsg(group_id, msg))
 
 async def sendGroupMsg(group_id, msg: Message):
     await bot.call_api('send_group_msg', group_id = group_id, message = Message(msg))
