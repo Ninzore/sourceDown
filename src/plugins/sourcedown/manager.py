@@ -3,7 +3,8 @@ import subprocess
 from .groupList import yellow_book
 from . import config
 
-remote_drv = config.remote_drv
+REMOTE_DRV = config.remote_drv
+MOUNT_FLD = config.mount_fld
 
 class Manager:
     @staticmethod
@@ -16,7 +17,7 @@ class Manager:
         remote_path = yellow_book.get(group_id)
         if not remote_path:
             remote_path = '杂货'
-        return remote_drv + remote_path
+        return REMOTE_DRV + remote_path
 
     @staticmethod
     def retrieveLink(remote_path):
@@ -27,7 +28,7 @@ class Manager:
 
     @staticmethod
     def mkRemoteDir(remote_path):
-        proc = subprocess.run(['rclone', 'mkdir', '{}{}'.format(remote_drv, remote_path)])
+        proc = subprocess.run(['rclone', 'mkdir', '{}{}'.format(REMOTE_DRV, remote_path)])
         if proc.returncode == 0:
             return True
         return False
