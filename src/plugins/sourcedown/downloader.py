@@ -195,7 +195,7 @@ class Downloader():
                 cwd=OUT_PATH,
                 stdout=subprocess.PIPE
             )
-            print('ffmpeg启动:', proc.args)
+            print('ffmpeg启动')
 
             self.loop.run_in_executor(None, subProcWatchdog, proc)
             for line in proc.stdout:
