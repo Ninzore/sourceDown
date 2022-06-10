@@ -48,7 +48,7 @@ async def _(event: GroupMessageEvent):
         await ytb_dl.finish('结束时间标记错啦！')
 
     task = Task(url, Contact(event.group_id, event.user_id), start=start, end=end)
-    if task.status == 'error':
+    if task.status != 'ready':
         await ytb_dl.finish(task.status_text)
     elif task.is_live:
         await ytb_dl.finish('仍在直播中无法下载')

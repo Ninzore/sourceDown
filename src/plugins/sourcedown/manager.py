@@ -31,3 +31,17 @@ class Manager:
         if proc.returncode == 0:
             return True
         return False
+
+    @staticmethod
+    def checkExist(search_ptn: str):
+        ptn = re.compile(search_ptn)
+        rootpath = Path(MOUNT_FLD)
+        for dirpath, dirnames, filenames in os.walk(MOUNT_FLD):
+            for f in filenames:
+                if ptn.search(f):
+                    # 如果就是根目录
+                    if Path(dirpath) == rootpath:
+                        return REMOTE_DRV + f
+                    else:
+                        return REMOTE_DRV + os.path.join(os.path.relpath(dirpath, rootpath), f)
+        return False

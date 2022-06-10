@@ -7,7 +7,6 @@ import yt_dlp
 from .groupList import yellow_book
 from .manager import Manager
 from .utils import replyFunc
-# from .cloudreve import cloudreve
 
 Contact = namedtuple('Contact', [
     'group_id',
@@ -45,7 +44,6 @@ class Task():
         self.remote_path = ''
         self.finished = False
         self.__files_to_remove = []
-        print(f'群号{self.contact.group_id}, 添加任务{self.title}')
 
     def extractInfo(self):
         with YoutubeDL() as ydl:
@@ -61,10 +59,33 @@ class Task():
                             if f['vcodec'] != 'none' and f['acodec'] == 'none' and f['video_ext'] == 'mp4')
                 if best_video['filesize'] > MAX_ALLOW_SIZE:
                     self.status = 'error'
-                    self.status_text = '错误：文件过大无法下载'
-            except:
+                    self.status_text = '太大啦'
+                
+                search_ptn = r'\[{}\].mp4'.format(info['id']) \
+                    if not (self.start or self.end) \
+                    else r'\[{}\]\s\[{}-{}\].mp4'.format(
+                        info['id'],
+                        self.start.replace(':', ',') if self.start else '-',
+                        self.end.replace(':', ',') if self.end else '-'
+                    )
+                
+                existed = Manager().checkExist(search_ptn)
+                if existed:
+                    self.status = 'finished'
+                    self.status_text = '下过了'
+                    print(self.contact.group_id, self.video_id, existed, '下过了')
+                    self.remote_path = existed
+                    self.finishTask()
+
+                else:
+                    self.status = 'ready'
+                    self.status_text = '等待中'
+                    print(f'群号{self.contact.group_id}, 添加任务{self.title}')
+                
+            except Exception as err:
+                print(err)
                 self.status = 'error'
-                self.status_text = '错误：会限？私享？反正拿不到'
+                self.status_text = '会限？私享？还是直播转码未完成？'
             
     def startTask(self):
         text = list(filter(None, [
