@@ -56,6 +56,8 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 pytestdebug.log
+tempCodeRunnerFile.py
+test.py
 
 # Translations
 *.mo
@@ -110,6 +112,8 @@ celerybeat.pid
 
 # Environments
 .env
+.env.dev
+.env.prod
 .venv
 env/
 venv/
@@ -137,5 +141,8 @@ dmypy.json
 
 # pytype static type analyzer
 .pytype/
+
+# tempfiles
+temp
 
 # End of https://www.toptal.com/developers/gitignore/api/python
