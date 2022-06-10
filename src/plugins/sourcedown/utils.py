@@ -2,6 +2,7 @@ import re
 import time
 import asyncio
 import subprocess
+from typing import Awaitable
 
 from nonebot import get_bot
 from nonebot.adapters.onebot.v11.adapter import Bot, Message, MessageSegment
@@ -20,26 +21,11 @@ def replyFunc(group_id, text = '', imgs = []):
     if len(imgs) > 0:
         for img in imgs:
             msg.append(MessageSegment.image(img))
-    
-    loop = False
+
     try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        in_loop = False
-        
-    try:
-        if loop:
-            asyncio.ensure_future(sendGroupMsg(group_id, msg), loop=loop)
-        else:
-            asyncio.run(sendGroupMsg(group_id, msg))
+        ensureAsync(sendGroupMsg, group_id, msg)
     except:
-        if not len(text) > 0:
-            pass
-        else:
-            if loop:
-                asyncio.ensure_future(sendGroupMsg(group_id, Message(text)), loop=loop)
-            else:
-                asyncio.run(sendGroupMsg(group_id, msg))
+        ensureAsync(sendGroupMsg, group_id, Message(text))
 
 async def sendGroupMsg(group_id, msg: Message):
     await bot.call_api('send_group_msg', group_id = group_id, message = Message(msg))
@@ -52,15 +38,29 @@ def timestampProc(ts: str):
     return match.group(0).replace('：', ':')
 
 def subProcWatchdog(proc: subprocess.Popen):
-    while True:
-        code = proc.poll()
-        if code == 0:
-            print('子进程完成')
-            return
-        elif code == None:
-            pass
-        else:
-            proc.terminate()
-            raise RuntimeError('出错啦', proc.args)
-            break
-        time.sleep(1)
+    async def _watchdog():
+        while True:
+            code = proc.poll()
+            if code == 0:
+                print('子进程完成')
+                return
+            elif code == None:
+                pass
+            else:
+                proc.terminate()
+                raise RuntimeError('出错啦', proc.args)
+                break
+            await asyncio.sleep(1)
+
+    ensureAsync(_watchdog)
+
+def ensureAsync(func: Awaitable, *args):
+    loop: asyncio.AbstractEventLoop = None
+    
+    in_loop = False
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError as err:
+        in_loop = True
+    loop.call_soon(func, args) if loop \
+    else asyncio.run(func(*args))
