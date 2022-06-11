@@ -67,13 +67,13 @@ async def _(event: GroupMessageEvent):
 @task_cancel.handle()
 async def _(event: GroupMessageEvent):
     if not downloader.current_task:
-        task_cancel.finish('当前无任务')
+        await task_cancel.finish('当前无任务')
     else:
         downloader.current_task.status = 'error'
         downloader.current_task.status_text = '任务被手动取消'
         downloader.current_task.finishTask()
         downloader.current_task = None
-        task_cancel.finish('已经手动取消当前任务')
+        await task_cancel.finish('已经手动取消当前任务')
 
 def cmdStrHandler(raw: str, parser) -> argparse.Namespace:
     raw_ = raw.split(' ', 1)
