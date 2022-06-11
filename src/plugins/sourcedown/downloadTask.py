@@ -60,33 +60,42 @@ class Task():
                 if best_video['filesize'] > MAX_ALLOW_SIZE:
                     self.status = 'error'
                     self.status_text = '太大啦'
-                
-                search_ptn = r'\[{}\].mp4'.format(info['id']) \
-                    if not (self.start or self.end) \
-                    else r'\[{}\]\s\[{}-{}\].mp4'.format(
-                        info['id'],
-                        self.start.replace(':', ',') if self.start else '-',
-                        self.end.replace(':', ',') if self.end else '-'
-                    )
-                
-                existed = Manager().checkExist(search_ptn)
-                if existed:
-                    self.status = 'finished'
-                    self.status_text = '下过了'
-                    print(self.contact.group_id, self.video_id, existed, '下过了')
-                    self.remote_path = existed
-                    self.finishTask()
+                self.prepare()
 
-                else:
-                    self.status = 'ready'
-                    self.status_text = '等待中'
-                    print(f'群号{self.contact.group_id}, 添加任务{self.title}')
-                
             except Exception as err:
                 print(err)
                 self.status = 'error'
                 self.status_text = '会限？私享？还是直播转码未完成？'
             
+    def prepare(self):
+        if self.status == 'error':
+            self.finishTask()
+        
+        search_ptn = r'\[{}\].mp4'.format(self.video_id) \
+            if not (self.start or self.end) \
+            else r'\[{}\]\s\[{}-{}\].mp4'.format(
+                self.video_id,
+                self.start.replace(':', ',') if self.start else '-',
+                self.end.replace(':', ',') if self.end else '-'
+            )
+        
+        existed = Manager.checkExist(search_ptn)
+        if existed:
+            self.status = 'finished'
+            self.status_text = '下过了'
+            print(self.contact.group_id, self.video_id, existed, '下过了')
+            self.remote_path = existed
+            self.finishTask()
+        elif self.is_live:
+            self.status = 'error'
+            self.status_text = '直播还没完不准下'
+            print(self.contact.group_id, self.video_id, '直播未结束')
+            self.finishTask()
+        else:
+            self.status = 'ready'
+            self.status_text = '等待中'
+            print(f'群号{self.contact.group_id}, 添加任务{self.title}')
+
     def startTask(self):
         text = list(filter(None, [
             '\n' if self.start or self.end is not None else None,
@@ -94,7 +103,8 @@ class Task():
             f'到{self.end}结束' if self.end is not None else None,
         ]))
         print(f'群号{self.contact.group_id} 开始下载:{self.title}', ' '.join(text))
-        replyFunc(self.contact.group_id, '开始下载\n{}{}'.format(self.title, ' '.join(text)), [self.thumbnail])
+        replyFunc(self.contact.group_id,
+        '开始下载\n{}{}'.format(self.title, ' '.join(text)), [self.thumbnail])
 
     def finishTask(self):
         if self.status == 'error':
@@ -104,10 +114,21 @@ class Task():
                 [self.thumbnail]
             )
         else:
-            self.retrieveLink()
+            try:
+                self.retrieveLink()
+                replyFunc(self.contact.group_id,
+                '{}\n{}'.format(self.title, self.file_link), [self.thumbnail])
+            except Exception as err:
+                replyFunc(self.contact.group_id,
+                '{}\n{}'.format(self.title, '获取链接失败'))
+        for f in self.__files_to_remove:
+            try:
+                if os.path.exists(f):
+                    os.unlink(f)
+            except Exception as err:
+                print('删除合并文件出错', err)
 
     def retrieveLink(self):
         time.sleep(3)
         link = Manager.retrieveLink(self.remote_path)
         self.file_link = link
-        replyFunc(self.contact.group_id, '{}\n{}'.format(self.title, self.file_link), [self.thumbnail])
