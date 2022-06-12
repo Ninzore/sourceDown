@@ -68,8 +68,7 @@ def dbOpreate(sql):
 #         return [], info
 
 class Downloader():
-    def __init__(self, loop: asyncio.AbstractEventLoop, **kwargs):
-        self.loop = loop
+    def __init__(self, **kwargs):
         self.args = kwargs
         self.current_task = None
         self.task_queue = []
@@ -159,7 +158,7 @@ class Downloader():
                 ydl.download([self.current_task.url])
             except Exception as err:
                 print('{} 出错\n{}'.format(self.current_task.title, err))
-                self.current_task.finishTask()
+                self.cancalTask('下载失败')
                 self.nextTask()
             
         if not self.current_task or (self.current_task.finished is True and self.current_task.status != "finished"):
@@ -186,18 +185,19 @@ class Downloader():
                 list(filter(None, [
                     'ffmpeg',
                     '-ss' if start is not None else None, start or None,
-                    '-i', self.current_task.filepath,
                     '-to' if end is not None else None, end or None,
+                    '-i', self.current_task.filepath,
                     '-c', 'copy',
+                    '-avoid_negative_ts', 'make_non_negative',
+                    '-y', '-loglevel', 'warning',
                     self.current_task.filename_cut,
-                    '-y', '-loglevel', 'warning'
                 ])),
                 cwd=OUT_PATH,
                 stdout=subprocess.PIPE
             )
             print('ffmpeg启动')
 
-            self.loop.run_in_executor(None, subProcWatchdog, proc)
+            subProcWatchdog(proc)
             for line in proc.stdout:
                 try:
                     line = line.decode('utf-8')
@@ -209,9 +209,7 @@ class Downloader():
             self.upload()
         except Exception as err:
             print('二刀流失败', err)
-            self.current_task.status = 'error'
-            self.current_task.status_text = '剪辑失败'
-            self.current_task.finishTask()
+            self.cancalTask('剪辑失败')
 
     def upload(self):
         filename = ''
@@ -226,7 +224,7 @@ class Downloader():
         self.current_task.remote_path = '{}/{}'.format(
             self.current_task.remote_folder, filename)
 
-        print('开始上传:', filename)
+        
         self.current_task.status_text = '准备上传'
 
         try:
@@ -237,7 +235,8 @@ class Downloader():
                 self.current_task.remote_path],
                 stdout=subprocess.PIPE)
             
-            self.loop.run_in_executor(None, subProcWatchdog, proc)
+            print('开始上传:', filename)
+            subProcWatchdog(proc)
             i = 0
             for line in proc.stdout:
                 try:
@@ -266,6 +265,9 @@ class Downloader():
             
         except Exception as err:
             print('上传失败', err)
-            self.current_task.status = 'error'
-            self.current_task.status_text = '上传失败'
-            self.current_task.finishTask()
+            self.cancalTask('上传失败')
+    
+    def cancalTask(self, status_text: str):
+        self.current_task.status = 'error'
+        self.current_task.status_text = status_text
+        self.current_task.finishTask()
