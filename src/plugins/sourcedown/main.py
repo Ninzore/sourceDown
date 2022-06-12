@@ -22,8 +22,7 @@ manage = on_regex('^群文件夹链接', permission=GROUP)
 task_status = on_regex('^查看任务进度', permission=GROUP)
 task_cancel = on_regex('^重置当前任务', permission=GROUP)
 
-loop = asyncio.get_event_loop()
-downloader = Downloader(loop)
+downloader = Downloader()
 ytb_url_ptn = re.compile(r'(https:\/\/((www|m)\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_\-]{11}))')
 
 dl_cmd_parser = argparse.ArgumentParser()
@@ -52,7 +51,8 @@ async def _(event: GroupMessageEvent):
         await ytb_dl.finish(task.status_text)
     elif task.is_live:
         await ytb_dl.finish('仍在直播中无法下载')
-    loop.run_in_executor(None, downloader.addQueue, task)
+
+    asyncio.get_event_loop().run_in_executor(None, downloader.addQueue, task)
 
 @manage.handle()
 async def _(event: GroupMessageEvent):
