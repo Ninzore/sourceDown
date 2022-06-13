@@ -15,12 +15,13 @@ from .downloadTask import Task, Contact
 from .downloader import Downloader
 from .manager import Manager
 from .utils import timestampProc
-from .autoclean import startAutoCleanTask
+from .autoclean import Cleaner
 
 ytb_dl = on_regex('^下载\s?https:\/\/((www|m)\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_\-]{11})', permission=GROUP)
-manage = on_regex('^群文件夹链接', permission=GROUP)
-task_status = on_regex('^查看任务进度', permission=GROUP)
-task_cancel = on_regex('^重置当前任务', permission=GROUP)
+manage = on_regex('^群文件夹链接$', permission=GROUP)
+task_status = on_regex('^查看任务进度$', permission=GROUP)
+task_cancel = on_regex('^重置当前任务$', permission=GROUP)
+del_temp = on_regex('^清理一下缓存$', permission=GROUP)
 
 downloader = Downloader()
 ytb_url_ptn = re.compile(r'(https:\/\/((www|m)\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_\-]{11}))')
@@ -29,7 +30,8 @@ dl_cmd_parser = argparse.ArgumentParser()
 dl_cmd_parser.add_argument('--开始', '-s', dest='start')
 dl_cmd_parser.add_argument('--结束', '-to', dest='end')
 
-startAutoCleanTask()
+cleaner = Cleaner()
+cleaner.startAutoClean()
 
 @ytb_dl.handle()
 async def _(event: GroupMessageEvent):
@@ -74,6 +76,14 @@ async def _(event: GroupMessageEvent):
         downloader.current_task.finishTask()
         downloader.current_task = None
         await task_cancel.finish('已经手动取消当前任务')
+
+@del_temp.handle()
+async def _(event: GroupMessageEvent):
+    errcode = Cleaner.deleteAllTemp()
+    if errcode is True:
+        await del_temp.finish('已完成清理')
+    else:
+        await del_temp.finish('清理失败')
 
 def cmdStrHandler(raw: str, parser) -> argparse.Namespace:
     raw_ = raw.split(' ', 1)
