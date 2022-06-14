@@ -44,7 +44,7 @@ class Task():
         self.finished = False
         self.__files_to_remove = []
 
-    async def extractInfo(self):
+    async def extract_info(self):
         try:
             with YoutubeDL() as ydl:
                 info = ydl.extract_info(self.url, download=False, process=False)
@@ -52,7 +52,7 @@ class Task():
             print(err)
             self.status = 'error'
             self.status_text = '会限？私享？还是直播转码未完成？'
-            await self.finishTask()
+            await self.finish()
         try:
             print(f'群号{self.contact.group_id}, {self.url}已获取到info')
             self.video_id = info['id']
@@ -72,11 +72,11 @@ class Task():
             print(err)
             self.status = 'error'
             self.status_text = '出错惹'
-            await self.finishTask()
+            await self.finish()
             
     async def prepare(self):
         if self.status == 'error':
-            await self.finishTask()
+            await self.finish()
         
         search_ptn = r'\[{}\].mp4'.format(self.video_id) \
             if not (self.start or self.end) \
@@ -92,18 +92,18 @@ class Task():
             self.status_text = '下过了'
             print(self.contact.group_id, self.video_id, existed, '下过了')
             self.remote_path = existed
-            await self.finishTask()
+            await self.finish()
         elif self.is_live:
             self.status = 'error'
             self.status_text = '直播还没完不准下'
             print(self.contact.group_id, self.video_id, '直播未结束')
-            await self.finishTask()
+            await self.finish()
         else:
             self.status = 'ready'
             self.status_text = '等待中'
             print(f'群号{self.contact.group_id}, 添加任务{self.title}')
 
-    async def startTask(self):
+    async def start(self):
         text = list(filter(None, [
             '\n' if self.start or self.end is not None else None,
             f'从{self.start}开始' if self.start is not None else None,
@@ -113,8 +113,9 @@ class Task():
         await replyFunc(self.contact.group_id,
         '开始下载\n{}{}'.format(self.title, ' '.join(text)), [self.thumbnail])
 
-    async def finishTask(self):
+    async def finish(self):
         if self.status == 'error':
+            print(f'组号{task.contact.group_id}, 任务失败，因为{task.status_text}')
             await replyFunc(self.contact.group_id, '{}\n失败：{}'.format(
                 self.title,
                 self.status_text),

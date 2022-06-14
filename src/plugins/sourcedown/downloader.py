@@ -116,7 +116,7 @@ class Downloader():
             if '__files_to_merge' in d['info_dict']:
                 self.current_task.__files_to_remove = d['info_dict']['__files_to_merge']
 
-    def addQueue(self, task: Task):
+    def add_queue(self, task: Task):
         # dbOpreate('''INSERT INTO DownloadQueue (
         #         title, url, status,
         #         group_id, user_id
@@ -137,7 +137,7 @@ class Downloader():
             self.task_queue.append(task)
             asyncio.run(replyFunc(task.contact.group_id, '已经添加到队列，前面堆着{}个任务'.format(len(self.task_queue))))
 
-    async def nextTask(self):
+    async def next_task(self):
         if len(self.task_queue) > 0:
             self.current_task = self.task_queue.pop(0)
             await self.download()
@@ -147,14 +147,14 @@ class Downloader():
 
     async def download(self):
         self.current_task.status = 'downloading'
-        await self.current_task.startTask()
+        await self.current_task.start()
         with YoutubeDL(self.ydl_opts) as ydl:
             try:
                 ydl.download([self.current_task.url])
             except Exception as err:
                 print('{} 出错\n{}'.format(self.current_task.title, err))
-                await self.cancalTask('下载失败')
-                await self.nextTask()
+                await self.cancel_task('下载失败')
+                await self.next_task()
         
         if self.current_task.start or self.current_task.end:
             await self.cut()
@@ -162,7 +162,7 @@ class Downloader():
             await self.upload()
             
         if not self.current_task or (self.current_task.finished is True and self.current_task.status != "finished"):
-            await self.nextTask()
+            await self.next_task()
     
     async def cut(self):
         print('二刀流启动中')
@@ -197,7 +197,7 @@ class Downloader():
             )
             print('ffmpeg启动')
             subProcWatchdog(proc)
-            
+
             for line in proc.stdout:
                 try:
                     line = line.decode('utf-8')
@@ -209,7 +209,7 @@ class Downloader():
             await self.upload()
         except Exception as err:
             print('二刀流失败', err)
-            await self.cancalTask('剪辑失败')
+            await self.cancel_task('剪辑失败')
 
     async def upload(self):
         filename = ''
@@ -261,13 +261,13 @@ class Downloader():
             
             print('下载完成')
             await self.current_task.finishTask()
-            await self.nextTask()
+            await self.next_task()
             
         except Exception as err:
             print('上传失败', err)
-            await self.cancalTask('上传失败')
+            await self.cancel_task('上传失败')
     
-    async def cancalTask(self, status_text: str):
+    async def cancel_task(self, status_text: str):
         self.current_task.status = 'error'
         self.current_task.status_text = status_text
         await self.current_task.finishTask()
