@@ -23,7 +23,7 @@ class Manager:
         return REMOTE_DRV + remote_path
 
     @staticmethod
-    def retrieveLink(remote_path):
+    async def retrieveLink(remote_path):
         proc = subprocess.run(['rclone', 'link', remote_path], stdout=subprocess.PIPE)
         if proc.returncode == 0:
             return proc.stdout.decode('utf-8')

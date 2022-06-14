@@ -115,11 +115,6 @@ class Downloader():
             self.current_task.status == "finished"
             if '__files_to_merge' in d['info_dict']:
                 self.current_task.__files_to_remove = d['info_dict']['__files_to_merge']
-            
-            if self.current_task.start or self.current_task.end:
-                self.cut()
-            else:
-                self.upload()
 
     def addQueue(self, task: Task):
         # dbOpreate('''INSERT INTO DownloadQueue (
@@ -134,37 +129,42 @@ class Downloader():
         
         if self.current_task is None and task.status != 'error':
             self.current_task = task
-            self.download()
+            asyncio.run(self.download())
         elif task.status == 'error':
             print(f'组号{task.contact.group_id}, 任务创建失败')
-            replyFunc(task.contact.group_id, '{}\n{}'.format(task.title, task.status_text), [task.thumbnail])
+            asyncio.run(replyFunc(task.contact.group_id, '{}\n{}'.format(task.title, task.status_text), [task.thumbnail]))
         else:
             self.task_queue.append(task)
-            replyFunc(task.contact.group_id, '已经添加到队列，前面堆着{}个任务'.format(len(self.task_queue)))
+            asyncio.run(replyFunc(task.contact.group_id, '已经添加到队列，前面堆着{}个任务'.format(len(self.task_queue))))
 
-    def nextTask(self):
+    async def nextTask(self):
         if len(self.task_queue) > 0:
             self.current_task = self.task_queue.pop(0)
-            self.download()
+            await self.download()
         else:
             self.current_task = None
             print('All tasks done')
 
-    def download(self):
+    async def download(self):
         self.current_task.status = 'downloading'
-        self.current_task.startTask()
+        await self.current_task.startTask()
         with YoutubeDL(self.ydl_opts) as ydl:
             try:
                 ydl.download([self.current_task.url])
             except Exception as err:
                 print('{} 出错\n{}'.format(self.current_task.title, err))
-                self.cancalTask('下载失败')
-                self.nextTask()
+                await self.cancalTask('下载失败')
+                await self.nextTask()
+        
+        if self.current_task.start or self.current_task.end:
+            await self.cut()
+        else:
+            await self.upload()
             
         if not self.current_task or (self.current_task.finished is True and self.current_task.status != "finished"):
-            self.nextTask()
+            await self.nextTask()
     
-    def cut(self):
+    async def cut(self):
         print('二刀流启动中')
         start = self.current_task.start or '-'
         end = self.current_task.end or '-'
@@ -196,8 +196,8 @@ class Downloader():
                 stdout=subprocess.PIPE
             )
             print('ffmpeg启动')
-
             subProcWatchdog(proc)
+            
             for line in proc.stdout:
                 try:
                     line = line.decode('utf-8')
@@ -206,12 +206,12 @@ class Downloader():
                 print(line)
             
             print('二刀流结束')
-            self.upload()
+            await self.upload()
         except Exception as err:
             print('二刀流失败', err)
-            self.cancalTask('剪辑失败')
+            await self.cancalTask('剪辑失败')
 
-    def upload(self):
+    async def upload(self):
         filename = ''
         filepath = ''
         if (len(self.current_task.filename_cut)) > 0:
@@ -260,14 +260,14 @@ class Downloader():
                     print(text.replace('\n', ' '))
             
             print('下载完成')
-            self.current_task.finishTask()
-            self.nextTask()
+            await self.current_task.finishTask()
+            await self.nextTask()
             
         except Exception as err:
             print('上传失败', err)
-            self.cancalTask('上传失败')
+            await self.cancalTask('上传失败')
     
-    def cancalTask(self, status_text: str):
+    async def cancalTask(self, status_text: str):
         self.current_task.status = 'error'
         self.current_task.status_text = status_text
-        self.current_task.finishTask()
+        await self.current_task.finishTask()
