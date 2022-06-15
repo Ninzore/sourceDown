@@ -19,8 +19,9 @@ from .autoclean import Cleaner
 
 ytb_dl = on_regex('^下载\s?https:\/\/((www|m)\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_\-]{11})', permission=GROUP)
 manage = on_regex('^群文件夹链接$', permission=GROUP)
-task_status = on_regex('^查看任务进度$', permission=GROUP)
-task_cancel = on_regex('^重置当前任务$', permission=GROUP)
+current_task_status = on_regex('^查看任务进度$', permission=GROUP)
+list_task_queue = on_regex('^查看任务列表$', permission=GROUP)
+cancel_current_task = on_regex('^(删除|取消)当前任务$', permission=GROUP)
 del_temp = on_regex('^清理一下缓存$', permission=GROUP)
 
 downloader = Downloader()
@@ -49,35 +50,55 @@ async def _(event: GroupMessageEvent):
         await ytb_dl.finish('结束时间标记错啦！')
 
     task = Task(url, Contact(event.group_id, event.user_id), start=start, end=end)
-    await task.extractInfo()
+    await task.extract_info()
 
     if task.status != 'ready':
         await ytb_dl.finish(task.status_text)
     elif task.is_live:
         await ytb_dl.finish('仍在直播中无法下载')
 
-    asyncio.get_event_loop().run_in_executor(None, downloader.addQueue, task)
+    asyncio.get_event_loop().run_in_executor(None, downloader.add_queue, task)
 
 @manage.handle()
 async def _(event: GroupMessageEvent):
     await manage.send(Manager.retrieveRemoteFolderLink(event.group_id))
 
-@task_status.handle()
+@current_task_status.handle()
 async def _(event: GroupMessageEvent):
     if not downloader.current_task:
-        await task_status.finish('当前无任务')
-    await task_status.send('当前任务: {}\n{}\n{}'.format(downloader.current_task.uploader, downloader.current_task.title, downloader.current_task.status_text))
+        await current_task_status.finish('当前无任务')
+    await current_task_status.send('当前任务: {}\n{}, [{}]\n{}'.format(
+        downloader.current_task.uploader,
+        downloader.current_task.title,
+        downloader.current_task.video_id,
+        downloader.current_task.status_text,
+    ))
 
-@task_cancel.handle()
+@list_task_queue.handle()
 async def _(event: GroupMessageEvent):
     if not downloader.current_task:
-        await task_cancel.finish('当前无任务')
+        await list_task_queue.finish('当前无任务')
+    
+    text = []
+    i = 1
+    for task in downloader.task_queue:
+        text.append('{i}. {title} - [{vid}]'.format(
+            i=i,
+            title=task.title,
+            vid=task.video_id
+        ))
+        i += 1
+
+    await list_task_queue.finish('任务列表: {}'.format("\n".join(text)))
+
+@cancel_current_task.handle()
+async def _(event: GroupMessageEvent):
+    if not downloader.current_task:
+        await cancel_current_task.finish('当前无任务')
     else:
         downloader.current_task.status = 'error'
         downloader.current_task.status_text = '任务被手动取消'
-        downloader.current_task.finishTask()
-        downloader.current_task = None
-        await task_cancel.finish('已经手动取消当前任务')
+        await cancel_current_task.finish('已经手动取消当前任务')
 
 @del_temp.handle()
 async def _(event: GroupMessageEvent):
