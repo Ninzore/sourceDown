@@ -22,6 +22,7 @@ manage = on_regex('^群文件夹链接$', permission=GROUP)
 current_task_status = on_regex('^查看任务进度$', permission=GROUP)
 list_task_queue = on_regex('^查看任务列表$', permission=GROUP)
 cancel_current_task = on_regex('^(删除|取消)当前任务$', permission=GROUP)
+cancel_select_task = on_regex('^(删除|取消)\d号任务$', permission=GROUP)
 del_temp = on_regex('^清理一下缓存$', permission=GROUP)
 
 downloader = Downloader()
@@ -99,6 +100,20 @@ async def _(event: GroupMessageEvent):
         downloader.current_task.status = 'error'
         downloader.current_task.status_text = '任务被手动取消'
         await cancel_current_task.finish('已经手动取消当前任务')
+
+@cancel_select_task.handle()
+async def _(event: GroupMessageEvent):
+    select = re.search('\d号', event.get_plaintext()).group(0)
+    select = int(select)
+
+    if not downloader.current_task:
+        await cancel_select_task.finish('当前无任务')
+    elif len(downloader.queue) < select:
+        await cancel_select_task.finish('不要乱输数字！')
+    else:
+        downloader.task_queue[select - 1].status = 'error'
+        downloader.task_queue[select - 1].status_text = '任务被手动取消'
+        await cancel_select_task.finish('好取消')
 
 @del_temp.handle()
 async def _(event: GroupMessageEvent):
