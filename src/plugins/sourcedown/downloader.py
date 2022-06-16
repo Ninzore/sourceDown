@@ -131,8 +131,8 @@ class Downloader():
             self.current_task = task
             asyncio.run(self.download())
         elif task.status == 'error':
-            print(f'组号{task.contact.group_id}, 任务创建失败')
-            asyncio.run(replyFunc(task.contact.group_id, '{}\n{}'.format(task.title, task.status_text), [task.thumbnail]))
+            asyncio.run(task.finish())
+            asyncio.run(self.next_task())
         else:
             self.task_queue.append(task)
             asyncio.run(replyFunc(task.contact.group_id, '已经添加到队列，前面堆着{}个任务'.format(len(self.task_queue))))
@@ -140,7 +140,10 @@ class Downloader():
     async def next_task(self):
         if len(self.task_queue) > 0:
             self.current_task = self.task_queue.pop(0)
-            await self.download()
+            if self.current_task.status == 'error':
+                await task.finish()
+            else:
+                await self.download()
         else:
             self.current_task = None
             print('All tasks done')
@@ -260,7 +263,7 @@ class Downloader():
                     print(text.replace('\n', ' '))
             
             print('下载完成')
-            await self.current_task.finishTask()
+            await self.current_task.finish()
             await self.next_task()
             
         except Exception as err:
@@ -270,4 +273,4 @@ class Downloader():
     async def cancel_task(self, status_text: str):
         self.current_task.status = 'error'
         self.current_task.status_text = status_text
-        await self.current_task.finishTask()
+        await self.current_task.finish()
