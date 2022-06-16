@@ -62,7 +62,7 @@ def dbOpreate(sql):
 
 # init()
 
-# class postprocessorHook(yt_dlp.postprocessor.PostProcessor):
+# class postprocessor_hook(yt_dlp.postprocessor.PostProcessor):
 #     def run(self, info):
 #         self.to_screen('Doing stuff')
 #         return [], info
@@ -75,11 +75,11 @@ class Downloader():
         self.ydl_opts = {
             'paths': {'home': OUT_PATH},
             'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best',
-            'progress_hooks': [self.statusHook],
-            'postprocessor_hooks': [self.postprocessorHook]
+            'progress_hooks': [self.status_hook],
+            'postprocessor_hooks': [self.postprocessor_hook]
         }
 
-    def statusHook(self, d):
+    def status_hook(self, d):
         if d['status'] == 'downloading':
             speed = d['speed']
             self.current_task.elapsed = d['elapsed']
@@ -95,7 +95,7 @@ class Downloader():
             print('download error')
             self.current_task.status_text = '下载错误'
 
-    def postprocessorHook(self, d):
+    def postprocessor_hook(self, d):
         """
         merger status has 'started' and 'finished'
         """
