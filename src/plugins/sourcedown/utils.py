@@ -8,11 +8,11 @@ from nonebot import get_bot
 from nonebot.adapters.onebot.v11.adapter import Bot, Message, MessageSegment
 
 bot: Bot = False
-async def get_bot():
+async def async_get_bot():
     await asyncio.sleep(3)
     global bot
     bot = get_bot()
-asyncio.gather(get_bot())
+asyncio.gather(async_get_bot())
 
 async def reply(group_id, text = '', imgs = []):
     msg = Message([])
