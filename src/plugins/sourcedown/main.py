@@ -14,7 +14,7 @@ from nonebot.adapters.onebot.v11.permission import GROUP
 from .downloadTask import Task, Contact
 from .downloader import Downloader
 from .manager import Manager
-from .utils import timestampProc
+from .utils import timestamp_proc
 from .autoclean import Cleaner
 
 ytb_dl = on_regex('^下载\s?https:\/\/((www|m)\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_\-]{11})', permission=GROUP)
@@ -42,8 +42,8 @@ async def _(event: GroupMessageEvent):
     url =  ytb_url_ptn.search(text).group(0)
 
     cmd = cmdStrHandler(text, dl_cmd_parser)
-    start = timestampProc(cmd.start) if cmd.start else None
-    end = timestampProc(cmd.end) if cmd.end else None
+    start = timestamp_proc(cmd.start) if cmd.start else None
+    end = timestamp_proc(cmd.end) if cmd.end else None
 
     if cmd.start and start == None:
         await ytb_dl.finish('开始时间标记错啦！')
@@ -62,7 +62,7 @@ async def _(event: GroupMessageEvent):
 
 @manage.handle()
 async def _(event: GroupMessageEvent):
-    await manage.send(Manager.retrieveRemoteFolderLink(event.group_id))
+    await manage.send(Manager.retrieve_remote_folder_link(event.group_id))
 
 @current_task_status.handle()
 async def _(event: GroupMessageEvent):

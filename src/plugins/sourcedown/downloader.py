@@ -10,7 +10,7 @@ import yt_dlp
 from . import config
 from .downloadTask import Task, Contact
 from .manager import Manager
-from .utils import replyFunc, subProcWatchdog
+from .utils import reply, sub_proc_watchdog
 
 db_name = 'queue.db'
 pattern = re.compile(r'Transferred')
@@ -135,7 +135,7 @@ class Downloader():
             asyncio.run(self.next_task())
         else:
             self.task_queue.append(task)
-            asyncio.run(replyFunc(task.contact.group_id, '已经添加到队列，前面堆着{}个任务'.format(len(self.task_queue))))
+            asyncio.run(reply(task.contact.group_id, '已经添加到队列，前面堆着{}个任务'.format(len(self.task_queue))))
 
     async def next_task(self):
         if len(self.task_queue) > 0:
@@ -199,7 +199,7 @@ class Downloader():
                 stdout=subprocess.PIPE
             )
             print('ffmpeg启动')
-            subProcWatchdog(proc)
+            sub_proc_watchdog(proc)
 
             for line in proc.stdout:
                 try:
@@ -239,7 +239,7 @@ class Downloader():
                 stdout=subprocess.PIPE)
             
             print('开始上传:', filename)
-            subProcWatchdog(proc)
+            sub_proc_watchdog(proc)
             i = 0
             for line in proc.stdout:
                 try:

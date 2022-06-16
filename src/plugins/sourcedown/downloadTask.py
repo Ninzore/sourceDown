@@ -6,7 +6,7 @@ import yt_dlp
 
 from .groupList import yellow_book
 from .manager import Manager
-from .utils import replyFunc
+from .utils import reply
 
 Contact = namedtuple('Contact', [
     'group_id',
@@ -39,7 +39,7 @@ class Task():
         self.status_text = ''
         self.add_time = time.time() + 8 * 3600
         self.file_link = ''
-        self.remote_folder = Manager.selectRmtFolder(self.contact.group_id)
+        self.remote_folder = Manager.select_rmt_folder(self.contact.group_id)
         self.remote_path = ''
         self.finished = False
         self.__files_to_remove = []
@@ -86,7 +86,7 @@ class Task():
                 self.end.replace(':', ',') if self.end else '-'
             )
         
-        existed = Manager.checkExist(search_ptn)
+        existed = Manager.check_exist(search_ptn)
         if existed:
             self.status = 'finished'
             self.status_text = '下过了'
@@ -110,24 +110,24 @@ class Task():
             f'到{self.end}结束' if self.end is not None else None,
         ]))
         print(f'群号{self.contact.group_id} 开始下载:{self.title}', ' '.join(text))
-        await replyFunc(self.contact.group_id,
+        await reply(self.contact.group_id,
         '开始下载\n{}{}'.format(self.title, ' '.join(text)), [self.thumbnail])
 
     async def finish(self):
         if self.status == 'error':
             print(f'组号{task.contact.group_id}, 任务失败，因为{task.status_text}')
-            await replyFunc(self.contact.group_id, '{}\n失败：{}'.format(
+            await reply(self.contact.group_id, '{}\n失败：{}'.format(
                 self.title,
                 self.status_text),
                 [self.thumbnail]
             )
         else:
             try:
-                await self.retrieveLink()
-                await replyFunc(self.contact.group_id,
+                await self.retrieve_link()
+                await reply(self.contact.group_id,
                 '{}\n{}'.format(self.title, self.file_link), [self.thumbnail])
             except Exception as err:
-                await replyFunc(self.contact.group_id,
+                await reply(self.contact.group_id,
                 '{}\n{}'.format(self.title, '获取链接失败'))
         for f in self.__files_to_remove:
             try:
@@ -136,7 +136,7 @@ class Task():
             except Exception as err:
                 print('删除合并文件出错', err)
 
-    async def retrieveLink(self):
+    async def retrieve_link(self):
         time.sleep(3)
-        link = await Manager.retrieveLink(self.remote_path)
+        link = await Manager.retrieve_link(self.remote_path)
         self.file_link = link
