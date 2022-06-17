@@ -121,7 +121,7 @@ class Task():
 
     async def finish(self):
         if self.status == 'error':
-            print(f'组号{task.contact.group_id}, 任务失败，因为{task.status_text}')
+            print(f'组号{self.contact.group_id}, 任务失败，因为{self.status_text}')
             await reply(self.contact.group_id, '{}\n失败：{}'.format(
                 self.title,
                 self.status_text),
