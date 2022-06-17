@@ -29,6 +29,7 @@ class Task():
         self.title = ''
         self.status = ''
         self.video_id = ''
+        self.was_live = False
         self.uploader = ''
         self.filepath = ''
         self.filepath_cut = ''
@@ -54,19 +55,7 @@ class Task():
             self.status_text = '会限？私享？还是直播转码未完成？'
             await self.finish()
         try:
-            print(f'群号{self.contact.group_id}, {self.url}已获取到info')
-            self.video_id = info['id']
-            self.title = info['title']
-            self.uploader = info['uploader']
-            self.is_live = info['is_live']
-            self.thumbnail = 'https://i.ytimg.com/vi/{}/maxresdefault.jpg'.format(self.video_id)
-
-            best_video = next(f for f in info['formats'][::-1]
-                        if f['vcodec'] != 'none' and f['acodec'] == 'none' and f['video_ext'] == 'mp4')
-            if best_video['filesize'] > MAX_ALLOW_SIZE:
-                self.status = 'error'
-                self.status_text = '太大啦'
-            await self.prepare()
+            await self.prepare(info)
 
         except Exception as err:
             print(err)
@@ -74,10 +63,27 @@ class Task():
             self.status_text = '出错惹'
             await self.finish()
             
-    async def prepare(self):
+    async def prepare(self, info):
         if self.status == 'error':
             await self.finish()
         
+        print(f'群号{self.contact.group_id}, {self.url}已获取到info')
+        self.video_id = info['id']
+        self.title = info['title']
+        self.uploader = info['uploader']
+        self.thumbnail = 'https://i.ytimg.com/vi/{}/maxresdefault.jpg'.format(self.video_id)
+
+        protocol = info['formats'][0]['protocol']
+        if protocol == 'http_dash_segments' or 'm3u8_native':
+                self.was_live = True
+        else:
+            best_video = next(f for f in info['formats'][::-1]
+                        if f['vcodec'] != 'none' and f['acodec'] == 'none' and f['video_ext'] == 'mp4')
+            if best_video['filesize'] > MAX_ALLOW_SIZE:
+                self.status = 'error'
+                self.status_text = '太大啦'
+                await self.finish()
+
         search_ptn = r'\[{}\].mp4'.format(self.video_id) \
             if not (self.start or self.end) \
             else r'\[{}\]\s\[{}-{}\].mp4'.format(
@@ -93,7 +99,7 @@ class Task():
             print(self.contact.group_id, self.video_id, existed, '下过了')
             self.remote_path = existed
             await self.finish()
-        elif self.is_live:
+        elif info['is_live'] == True and info['was_live'] == False:
             self.status = 'error'
             self.status_text = '直播还没完不准下'
             print(self.contact.group_id, self.video_id, '直播未结束')

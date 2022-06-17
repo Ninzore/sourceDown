@@ -72,9 +72,16 @@ class Downloader():
         self.args = kwargs
         self.current_task = None
         self.task_queue = []
-        self.ydl_opts = {
+        self.ydl_opts_normal = {
             'paths': {'home': OUT_PATH},
             'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best',
+            'progress_hooks': [self.status_hook],
+            'postprocessor_hooks': [self.postprocessor_hook]
+        }
+        self.ydl_opts_live = {
+            'paths': {'home': OUT_PATH},
+            'is_from_start': True,
+            'concurrent_fragment_downloads': 8,
             'progress_hooks': [self.status_hook],
             'postprocessor_hooks': [self.postprocessor_hook]
         }
@@ -151,7 +158,9 @@ class Downloader():
     async def download(self):
         self.current_task.status = 'downloading'
         await self.current_task.start()
-        with YoutubeDL(self.ydl_opts) as ydl:
+        with YoutubeDL(self.ydl_opts_normal \
+        if self.current_task.was_live == True \
+        else self.ydl_opts_live) as ydl:
             try:
                 ydl.download([self.current_task.url])
             except Exception as err:
