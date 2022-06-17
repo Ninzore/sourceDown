@@ -50,7 +50,7 @@ class Task():
             with YoutubeDL() as ydl:
                 info = ydl.extract_info(self.url, download=False, process=False)
         except Exception as err:
-            print(err)
+            print(self.video_id, err)
             self.status = 'error'
             self.status_text = '会限？私享？还是直播转码未完成？'
             await self.finish()
@@ -58,7 +58,7 @@ class Task():
             await self.prepare(info)
 
         except Exception as err:
-            print(err)
+            print(self.video_id, err)
             self.status = 'error'
             self.status_text = '出错惹'
             await self.finish()
@@ -107,7 +107,7 @@ class Task():
         else:
             self.status = 'ready'
             self.status_text = '等待中'
-            print(f'群号{self.contact.group_id}, 添加任务{self.title}')
+            print(f'群号{self.contact.group_id}, 添加任务{self.title} {self.video_id}')
 
     async def start(self):
         text = list(filter(None, [
@@ -115,13 +115,13 @@ class Task():
             f'从{self.start}开始' if self.start is not None else None,
             f'到{self.end}结束' if self.end is not None else None,
         ]))
-        print(f'群号{self.contact.group_id} 开始下载:{self.title}', ' '.join(text))
+        print(f'群号{self.contact.group_id} 开始下载:{self.title} {self.video_id}', ' '.join(text))
         await reply(self.contact.group_id,
         '开始下载\n{}{}'.format(self.title, ' '.join(text)), [self.thumbnail])
 
     async def finish(self):
         if self.status == 'error':
-            print(f'组号{self.contact.group_id}, 任务失败，因为{self.status_text}')
+            print(f'组号{self.contact.group_id},  {self.video_id} 任务失败，因为{self.status_text}')
             await reply(self.contact.group_id, '{}\n失败：{}'.format(
                 self.title,
                 self.status_text),
@@ -140,7 +140,7 @@ class Task():
                 if os.path.exists(f):
                     os.unlink(f)
             except Exception as err:
-                print('删除合并文件出错', err)
+                print('{self.video_id} 删除合并文件出错', err)
 
     async def retrieve_link(self):
         time.sleep(3)
