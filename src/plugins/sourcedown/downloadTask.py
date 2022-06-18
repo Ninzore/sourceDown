@@ -67,15 +67,15 @@ class Task():
         if self.status == 'error':
             await self.finish()
         
-        print(f'群号{self.contact.group_id}, {self.url}已获取到info')
         self.video_id = info['id']
         self.title = info['title']
         self.uploader = info['uploader']
         self.thumbnail = 'https://i.ytimg.com/vi/{}/maxresdefault.jpg'.format(self.video_id)
-
+        print(f'群号{self.contact.group_id} {self.video_id} 已获取到info')
+        
         protocol = info['formats'][0]['protocol']
         if protocol == 'http_dash_segments' or 'm3u8_native':
-                self.was_live = True
+            self.was_live = True
         else:
             best_video = next(f for f in info['formats'][::-1]
                         if f['vcodec'] != 'none' and f['acodec'] == 'none' and f['video_ext'] == 'mp4')
@@ -107,15 +107,15 @@ class Task():
         else:
             self.status = 'ready'
             self.status_text = '等待中'
-            print(f'群号{self.contact.group_id}, 添加任务{self.title} {self.video_id}')
+            print(f'群号{self.contact.group_id}, 添加任务 {self.video_id}')
 
-    async def start(self):
+    async def start_task(self):
         text = list(filter(None, [
             '\n' if self.start or self.end is not None else None,
             f'从{self.start}开始' if self.start is not None else None,
             f'到{self.end}结束' if self.end is not None else None,
         ]))
-        print(f'群号{self.contact.group_id} 开始下载:{self.title} {self.video_id}', ' '.join(text))
+        print(f'群号{self.contact.group_id} 开始下载: {self.video_id}', ' '.join(text))
         await reply(self.contact.group_id,
         '开始下载\n{}{}'.format(self.title, ' '.join(text)), [self.thumbnail])
 
