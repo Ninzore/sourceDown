@@ -3,7 +3,6 @@ import re
 import asyncio
 import subprocess
 import sqlite3
-
 from yt_dlp import YoutubeDL
 import yt_dlp
 
@@ -15,11 +14,11 @@ from .utils import reply, sub_proc_watchdog
 db_name = 'queue.db'
 pattern = re.compile(r'Transferred')
 OUT_PATH = config.dl_root
+CONCURRENT_FREG = config.concurrent_fragment_downloads
 
 if not os.path.exists(OUT_PATH):
     os.mkdir(OUT_PATH)
 
-import json
 
 # create table DownloadQueue
 # (
@@ -81,7 +80,7 @@ class Downloader():
         self.ydl_opts_live = {
             'paths': {'home': OUT_PATH},
             'is_from_start': True,
-            'concurrent_fragment_downloads': 8,
+            'concurrent_fragment_downloads': CONCURRENT_FREG,
             'progress_hooks': [self.status_hook],
             'postprocessor_hooks': [self.postprocessor_hook]
         }
@@ -90,12 +89,25 @@ class Downloader():
         if d['status'] == 'downloading':
             speed = d['speed']
             self.current_task.elapsed = d['elapsed']
-            self.current_task.total_bytes = d['total_bytes']
             self.current_task.downloaded_bytes = d['downloaded_bytes']
-            self.current_task.speed = speed / 1024 / 1024 if type(speed) is float else 0
-            self.current_task.status_text = '当前下载速度：{:.2f}MB/s,\n进度: {:.2f}%'.format(
-                self.current_task.speed,
-                100 * self.current_task.downloaded_bytes / self.current_task.total_bytes)
+            
+            if not self.current_task.was_live:
+                self.current_task.total_bytes = d['total_bytes']
+                self.current_task.speed = speed / 1024 / 1024 if type(speed) is float else 0
+                self.current_task.status_text = '当前下载速度：{:.2f}MB/s,\n进度: {:.2f}%'.format(
+                    self.current_task.speed,
+                    100 * self.current_task.downloaded_bytes / self.current_task.total_bytes)
+            else:
+                self.current_task.total_bytes = d['total_bytes_estimate']
+                self.current_task.speed = speed / 1024 / 1024 if type(speed) is float else 0
+                if self.current_task.total_bytes == 0:
+                    self.current_task.status_text = '当前下载速度：{:.2f}MB/s,\n进度: {:.2f}%'.format(
+                        self.current_task.speed * CONCURRENT_FREG,
+                        d['fragment_index'] / d['fragment_count'])
+                else:
+                    self.current_task.status_text = '当前下载速度：{:.2f}MB/s,\n进度: {:.2f}%'.format(
+                        self.current_task.speed,
+                        100 * self.current_task.downloaded_bytes / self.current_task.total_bytes)
         elif d['status'] == 'finished':
             print('finish part download')
         else:
@@ -163,14 +175,14 @@ class Downloader():
 
     async def download(self):
         self.current_task.status = 'downloading'
-        await self.current_task.start()
+        await self.current_task.start_task()
         with YoutubeDL(self.ydl_opts_normal \
-        if self.current_task.was_live == True \
+        if self.current_task.was_live == False \
         else self.ydl_opts_live) as ydl:
             try:
                 ydl.download([self.current_task.url])
             except Exception as err:
-                print(f'{task.contact.group_id} {self.current_task.video_id} 出错\n{err}')
+                print(f'{self.current_task.contact.group_id} {self.current_task.video_id} 出错\n{err}')
                 await self.cancel_task('下载失败')
                 await self.next_task()
         
