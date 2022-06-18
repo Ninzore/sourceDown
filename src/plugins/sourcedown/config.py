@@ -7,6 +7,7 @@ class Config(BaseSettings):
     dl_root = os.path.join(Path(__file__).parent.parent.parent.parent.resolve(), 'temp')
     auto_clean_interval = 10
     mount_fld = '填写rclone mount的本地文件夹'
+    concurrent_fragment_downloads = 8
 
     class Config:
         extra = "ignore"
