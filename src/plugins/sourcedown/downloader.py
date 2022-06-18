@@ -156,8 +156,8 @@ class Downloader():
             self.task_queue.append(task)
             print('{} {} {} 已经添加到队列，前面堆着{}个任务'.format(
                 task.contact.group_id,
-                self.current_task.title,
-                self.current_task.video_id,
+                task.title,
+                task.video_id,
                 len(self.task_queue)
             ))
             asyncio.run(reply(task.contact.group_id, '已经添加到队列，前面堆着{}个任务'.format(len(self.task_queue))))
@@ -166,7 +166,7 @@ class Downloader():
         if len(self.task_queue) > 0:
             self.current_task = self.task_queue.pop(0)
             if self.current_task.status == 'error':
-                await task.finish()
+                await self.current_task.finish()
             else:
                 await self.download()
         else:
@@ -195,7 +195,7 @@ class Downloader():
             await self.next_task()
     
     async def cut(self):
-        print(f'{task.contact.group_id} {self.current_task.video_id} 二刀流启动中')
+        print(f'{self.current_task.contact.group_id} {self.current_task.video_id} 二刀流启动中')
         start = self.current_task.start or '-'
         end = self.current_task.end or '-'
         filename = self.current_task.filename
@@ -235,7 +235,7 @@ class Downloader():
                     print(err)
                 print(line)
             
-            print(f'{task.contact.group_id} {self.current_task.video_id} 二刀流结束')
+            print(f'{self.current_task.contact.group_id} {self.current_task.video_id} 二刀流结束')
             await self.upload()
         except Exception as err:
             print('二刀流失败', err)
@@ -265,7 +265,7 @@ class Downloader():
                 self.current_task.remote_path],
                 stdout=subprocess.PIPE)
             
-            print(f'{task.contact.group_id} {self.current_task.video_id} 开始上传:', filename)
+            print(f'{self.current_task.contact.group_id} {self.current_task.video_id} 开始上传:', filename)
             sub_proc_watchdog(proc)
             i = 0
             for line in proc.stdout:
@@ -289,12 +289,12 @@ class Downloader():
                     i = 0
                     print(text.replace('\n', ' '))
             
-            print(f'{task.contact.group_id} {self.current_task.video_id} 下载完成')
+            print(f'{self.current_task.contact.group_id} {self.current_task.video_id} 下载完成')
             await self.current_task.finish()
             await self.next_task()
             
         except Exception as err:
-            print(f'{task.contact.group_id} {self.current_task.video_id} 上传失败', err)
+            print(f'{self.current_task.contact.group_id} {self.current_task.video_id} 上传失败', err)
             await self.cancel_task('上传失败')
     
     async def cancel_task(self, status_text: str):
