@@ -74,7 +74,7 @@ class Task():
         print(f'群号{self.contact.group_id} {self.video_id} 已获取到info')
         
         protocol = info['formats'][0]['protocol']
-        if protocol == 'http_dash_segments' or 'm3u8_native':
+        if protocol == 'http_dash_segments' or protocol == 'm3u8_native':
             self.was_live = True
         else:
             best_video = next(f for f in info['formats'][::-1]
