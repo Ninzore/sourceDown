@@ -53,12 +53,10 @@ async def _(event: GroupMessageEvent):
     task = Task(url, Contact(event.group_id, event.user_id), start=start, end=end)
     await task.extract_info()
 
-    if task.status != 'ready':
-        await ytb_dl.finish(task.status_text)
-    elif task.is_live:
-        await ytb_dl.finish('仍在直播中无法下载')
-
-    asyncio.get_event_loop().run_in_executor(None, downloader.add_queue, task)
+    if task.status == 'ready':
+        asyncio.get_event_loop().run_in_executor(None, downloader.add_queue, task)
+    else:
+        return
 
 @manage.handle()
 async def _(event: GroupMessageEvent):

@@ -31,6 +31,7 @@ class Task():
         self.video_id = ''
         self.was_live = False
         self.uploader = ''
+        self.thumbnail = ''
         self.filepath = ''
         self.filepath_cut = ''
         self.filename = ''
@@ -46,6 +47,7 @@ class Task():
         self.__files_to_remove = []
 
     async def extract_info(self):
+        info = None
         try:
             with YoutubeDL() as ydl:
                 info = ydl.extract_info(self.url, download=False, process=False)
@@ -54,6 +56,10 @@ class Task():
             self.status = 'error'
             self.status_text = '会限？私享？还是直播转码未完成？'
             await self.finish()
+
+        if info is None:
+            return
+
         try:
             await self.prepare(info)
 
@@ -125,7 +131,7 @@ class Task():
             await reply(self.contact.group_id, '{}\n失败：{}'.format(
                 self.title,
                 self.status_text),
-                [self.thumbnail]
+                [self.thumbnail] if self.thumbnail != '' else []
             )
         else:
             try:
