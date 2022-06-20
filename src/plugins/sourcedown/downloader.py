@@ -10,6 +10,7 @@ from . import config
 from .downloadTask import Task, Contact
 from .manager import Manager
 from .utils import reply, sub_proc_watchdog
+from .error import CanceledTask
 
 db_name = 'queue.db'
 pattern = re.compile(r'Transferred')
@@ -86,6 +87,9 @@ class Downloader():
         }
 
     def status_hook(self, d):
+        if self.current_task.status == 'error':
+            raise CanceledTask(self.current_task.status_text)
+
         if d['status'] == 'downloading':
             speed = d['speed']
             self.current_task.elapsed = d['elapsed']
@@ -181,18 +185,18 @@ class Downloader():
         else self.ydl_opts_live) as ydl:
             try:
                 ydl.download([self.current_task.url])
+            except CanceledTask as err:
+                await self.cancel_task('任务被手动取消')
             except Exception as err:
-                print(f'{self.current_task.contact.group_id} {self.current_task.video_id} 出错\n{err}')
+                print(f'{self.current_task.contact.group_id} {self.current_task.video_id} 出错: {err}')
                 await self.cancel_task('下载失败')
-                await self.next_task()
         
-        if self.current_task.start or self.current_task.end:
-            await self.cut()
-        else:
-            await self.upload()
-            
-        if not self.current_task or (self.current_task.finished is True and self.current_task.status != "finished"):
-            await self.next_task()
+        if self.current_task.status != 'error':
+            if self.current_task.start or self.current_task.end:
+                await self.cut()
+            else:
+                await self.upload()
+        await self.next_task()
     
     async def cut(self):
         print(f'{self.current_task.contact.group_id} {self.current_task.video_id} 二刀流启动中')
@@ -291,7 +295,6 @@ class Downloader():
             
             print(f'{self.current_task.contact.group_id} {self.current_task.video_id} 下载完成')
             await self.current_task.finish()
-            await self.next_task()
             
         except Exception as err:
             print(f'{self.current_task.contact.group_id} {self.current_task.video_id} 上传失败', err)
