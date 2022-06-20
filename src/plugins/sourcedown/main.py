@@ -22,7 +22,7 @@ manage = on_regex('^群文件夹链接$', permission=GROUP)
 current_task_status = on_regex('^查看任务进度$', permission=GROUP)
 list_task_queue = on_regex('^查看任务列表$', permission=GROUP)
 cancel_current_task = on_regex('^(删除|取消)当前任务$', permission=GROUP)
-cancel_select_task = on_regex('^(删除|取消)\d号任务$', permission=GROUP)
+cancel_select_task = on_regex('^(删除|取消)任务\d$', permission=GROUP)
 del_temp = on_regex('^清理一下缓存$', permission=GROUP)
 
 downloader = Downloader()
@@ -63,7 +63,7 @@ async def _(event: GroupMessageEvent):
     await manage.send(Manager.retrieve_remote_folder_link(event.group_id))
 
 @current_task_status.handle()
-async def _(event: GroupMessageEvent):
+async def reply_current_task(event: GroupMessageEvent):
     if not downloader.current_task:
         await current_task_status.finish('当前无任务')
     await current_task_status.send('当前任务: {}\n{}, [{}]\n{}'.format(
@@ -77,7 +77,9 @@ async def _(event: GroupMessageEvent):
 async def _(event: GroupMessageEvent):
     if not downloader.current_task:
         await list_task_queue.finish('当前无任务')
-    
+    elif len(downloader.task_queue) < 1:
+        await reply_current_task(event)
+
     text = []
     i = 1
     for task in downloader.task_queue:
@@ -88,7 +90,7 @@ async def _(event: GroupMessageEvent):
         ))
         i += 1
 
-    await list_task_queue.finish('任务列表: {}'.format("\n".join(text)))
+    await list_task_queue.finish('排队中:\n {}'.format("\n".join(text)))
 
 @cancel_current_task.handle()
 async def _(event: GroupMessageEvent):
@@ -101,7 +103,7 @@ async def _(event: GroupMessageEvent):
 
 @cancel_select_task.handle()
 async def _(event: GroupMessageEvent):
-    select = re.search('\d号', event.get_plaintext()).group(0)
+    select = re.search('\d', event.get_plaintext()).group(0)
     select = int(select)
 
     if not downloader.current_task:
