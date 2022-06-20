@@ -79,18 +79,18 @@ async def _(event: GroupMessageEvent):
         await list_task_queue.finish('当前无任务')
     elif len(downloader.task_queue) < 1:
         await reply_current_task(event)
+    else:
+        text = []
+        i = 1
+        for task in downloader.task_queue:
+            text.append('{i}. {title} - [{vid}]'.format(
+                i=i,
+                title=task.title,
+                vid=task.video_id
+            ))
+            i += 1
 
-    text = []
-    i = 1
-    for task in downloader.task_queue:
-        text.append('{i}. {title} - [{vid}]'.format(
-            i=i,
-            title=task.title,
-            vid=task.video_id
-        ))
-        i += 1
-
-    await list_task_queue.finish('排队中:\n {}'.format("\n".join(text)))
+        await list_task_queue.finish('排队中:\n {}'.format("\n".join(text)))
 
 @cancel_current_task.handle()
 async def _(event: GroupMessageEvent):
