@@ -1,6 +1,7 @@
 import os
 import re
 import asyncio
+import traceback
 import subprocess
 import sqlite3
 from yt_dlp import YoutubeDL
@@ -188,6 +189,7 @@ class Downloader():
             except CanceledTask as err:
                 await self.cancel_task('任务被手动取消')
             except Exception as err:
+                traceback.print_exc()
                 print(f'{self.current_task.contact.group_id} {self.current_task.video_id} 出错: {err}')
                 await self.cancel_task('下载失败')
         
