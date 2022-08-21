@@ -275,6 +275,10 @@ class Downloader():
             sub_proc_watchdog(proc)
             i = 0
             for line in proc.stdout:
+                if self.current_task.status == 'error':
+                    raise Exception(self.current_task.status_text)
+                elif self.current_task.status == 'canceled':
+                    raise CanceledTask(self.current_task.status_text)
                 try:
                     line = line.decode('utf-8')
                 except UnicodeDecodeError as err:
@@ -297,7 +301,9 @@ class Downloader():
             
             print(f'{self.current_task.contact.group_id} {self.current_task.video_id} 下载完成')
             await self.current_task.finish()
-            
+        
+        except CanceledTask as err:
+                await self.cancel_task('任务被手动取消')
         except Exception as err:
             print(f'{self.current_task.contact.group_id} {self.current_task.video_id} 上传失败', err)
             await self.cancel_task('上传失败')

@@ -97,7 +97,7 @@ async def _(event: GroupMessageEvent):
     if not downloader.current_task:
         await cancel_current_task.finish('当前无任务')
     else:
-        downloader.current_task.status = 'error'
+        downloader.current_task.status = 'canceled'
         downloader.current_task.status_text = '任务被手动取消'
         await cancel_current_task.finish('已经手动取消当前任务')
 
