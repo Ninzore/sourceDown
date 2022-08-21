@@ -88,7 +88,7 @@ class Downloader():
         }
 
     def status_hook(self, d):
-        if self.current_task.status == 'error':
+        if self.current_task.status == 'canceled':
             raise CanceledTask(self.current_task.status_text)
 
         if d['status'] == 'downloading':
